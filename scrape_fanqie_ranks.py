@@ -116,7 +116,7 @@ def run_scraper(limit=30, sleep_sec=5):
                 print(f"切换分类出错或加载超时 {cat_name}: {e}")
             
             # Scroll to load top ~30 books
-            for _ in range(3):
+            for _ in range(15):
                 page.evaluate("window.scrollBy(0, window.innerHeight)")
                 time.sleep(1.5)
                 
@@ -199,7 +199,7 @@ def run_scraper(limit=30, sleep_sec=5):
                 books_data = []
             
             category_books = []
-            for b in books_data[:limit]:
+            for b in books_data:
                 # Apply decoding logic!
                 t = decode_text(b.get("title", ""))
                 a = decode_text(b.get("author", ""))
@@ -257,4 +257,4 @@ def run_scraper(limit=30, sleep_sec=5):
 
 if __name__ == "__main__":
     print("开始执行番茄女频新书榜抓取计划...")
-    run_scraper(limit=30, sleep_sec=5)
+    run_scraper(limit=100, sleep_sec=5)
