@@ -116,90 +116,129 @@ def run_scraper(limit=30, sleep_sec=5):
                 print(f"切换分类出错或加载超时 {cat_name}: {e}")
             
             # Scroll to load top ~30 books
-            for _ in range(15):
-                page.evaluate("window.scrollBy(0, window.innerHeight)")
-                time.sleep(1.5)
-                
-            # Extract cards. Based on helper.js: books usually are inside links a[href^="/page/"]
-            # Let's use playwright evaluate to reliably traverse DOM the same way script did.
-            extract_js = """
-            () => {
-                const bookMap = new Map();
-                const links = document.querySelectorAll('a[href^="/page/"]');
-                links.forEach(link => {
-                    let container = link.parentElement;
-                    let depth = 0;
-                    while (container && depth < 6) {
-                        if (container.querySelector('img') && container.innerText.includes('在读')) {
-                            const href = link.getAttribute('href');
-                            if (!bookMap.has(href)) {
-                                bookMap.set(href, container);
-                            }
-                            break;
-                        }
-                        container = container.parentElement;
-                        depth++;
-                    }
-                });
-                
-                const cards = Array.from(bookMap.values());
-                const results = [];
-                for (const item of cards) {
-                    let imgNode = item.querySelector('img');
-                    let cover = imgNode ? imgNode.getAttribute('src') : "";
-                    
-                    let title = "";
-                    if (imgNode && imgNode.getAttribute('alt')) {
-                        title = imgNode.getAttribute('alt').trim();
-                    }
-                    if (!title) {
-                        let textTitleNode = item.querySelector('h4, .title, h1') || item.querySelector('a[href^="/page/"]');
-                        if (textTitleNode) {
-                            let text = textTitleNode.innerText.trim();
-                            if (text && !/^\\d+$/.test(text)) {
-                                title = text;
-                            }
-                        }
-                    }
-                    if (!title) title = "未知";
-                    if (title.includes("榜单说明")) continue;
-                    
-                    let authorNode = item.querySelector('.author, .author-name') || item.querySelector('a[href^="/author-page/"]');
-                    let author = authorNode ? authorNode.innerText.trim() : "未知";
-                    
-                    let reads = "未知";
-                    const lines = item.innerText.split('\\n');
-                    for (let line of lines) {
-                        if (line.includes('在读')) {
-                            reads = line;  // We'll decode in Python
-                            break;
-                        }
-                    }
-                    
-                    let introNode = item.querySelector('.intro, .abstract, .desc');
-                    let intro = introNode ? introNode.innerText.trim() : "暂无简介";
-                    
-                    results.push({
-                        title: title,
-                        author: author,
-                        reads: reads,
-                        intro: intro,
-                        cover: cover,
-                        url: item.querySelector('a[href^="/page/"]').getAttribute('href')
-                    });
-                }
-                return results;
-            }
-            """
+                       # ========== 开始：跨页抓取逻辑 ==========
+            all_books_data = [] # 用于存储所有页面的书籍数据
+            current_page_num = 1 # 页码计数器
             
-            try:
-                books_data = page.evaluate(extract_js)
-            except Exception as e:
-                print(f"执行JS抽取失败 {cat_name}: {e}")
-                books_data = []
-            
+            while True: # 翻页大循环
+                print(f"    📖 正在提取第 {current_page_num} 页...")
+                
+                # 1. 持续滚动直到当前页面底部，加载本页全部小说
+                no_change_count = 0
+                last_height = 0
+                while True:
+                    page.evaluate("window.scrollBy(0, window.innerHeight)")
+                    time.sleep(2) # 增加等待时间到2秒，确保懒加载触发
+                    
+                    current_height = page.evaluate("document.body.scrollHeight")
+                    if current_height == last_height:
+                        no_change_count += 1
+                        if no_change_count >= 3:
+                            break
+                    else:
+                        no_change_count = 0
+                        last_height = current_height
+
+                # 2. 提取当前页面的小说数据
+                extract_js = """
+() => {
+const bookMap = new Map();
+const links = document.querySelectorAll('a[href^="/page/"]');
+links.forEach(link => {
+let container = link.parentElement;
+let depth = 0;
+while (container && depth < 6) {
+if (container.querySelector('img') && container.innerText.includes('在读')) {
+const href = link.getAttribute('href');
+if (!bookMap.has(href)) {
+bookMap.set(href, container);
+}
+break;
+}
+container = container.parentElement;
+depth++;
+}
+});
+const cards = Array.from(bookMap.values());
+
+const results = [];
+for (const item of cards) {
+let imgNode = item.querySelector('img');
+let cover = imgNode ? imgNode.getAttribute('src') : "";
+let title = "";
+if (imgNode && imgNode.getAttribute('alt')) {
+title = imgNode.getAttribute('alt').trim();
+}
+if (!title) {
+let textTitleNode = item.querySelector('h4, .title, h1') || item.querySelector('a[href^="/page/"]');
+if (textTitleNode) {
+let text = textTitleNode.innerText.trim();
+if (text && !/^\\d+$/.test(text)) {
+title = text;
+}
+}
+}
+
+if (!title) title = "未知";
+if (title.includes("榜单说明")) continue;
+let authorNode = item.querySelector('.author, .author-name') || item.querySelector('a[href^="/author-page/"]');
+let author = authorNode ? authorNode.innerText.trim() : "未知";
+let reads = "未知";
+const lines = item.innerText.split('\\n');
+for (let line of lines) {
+if (line.includes('在读')) {
+reads = line; // We'll decode in Python
+break;
+}
+}
+let introNode = item.querySelector('.intro, .abstract, .desc');
+
+let intro = introNode ? introNode.innerText.trim() : "暂无简介";
+results.push({
+title: title,
+author: author,
+reads: reads,
+intro: intro,
+cover: cover,
+url: item.querySelector('a[href^="/page/"]').getAttribute('href')
+});
+}
+return results;
+}
+"""
+                try:
+                    current_page_books = page.evaluate(extract_js)
+                    if current_page_books:
+                        all_books_data.extend(current_page_books)
+                except Exception as e:
+                    print(f"执行JS抽取失败 {cat_name} 第{current_page_num}页: {e}")
+                
+                # 3. 检查并点击“下一页”按钮
+                try:
+                    # 匹配番茄网页版常见的下一页按钮特征
+                    next_btn = page.locator('.rank-page-next, button:has-text("下一页"), a:has-text("下一页")').first
+                    if next_btn.is_visible() and next_btn.is_enabled():
+                        next_btn.click()
+                        # 等待页面网络请求完成和新内容加载
+                        page.wait_for_load_state("networkidle")
+                        time.sleep(2)
+                        # 回到顶部，为下一次滚动加载做准备
+                        page.evaluate("window.scrollTo(0, 0)")
+                        time.sleep(1)
+                        current_page_num += 1 # 页码+1
+                    else:
+                        break # 没有下一页了，退出翻页循环
+                except Exception:
+                    break # 找不到按钮报错，说明没有下一页，退出循环
+
+            # 4. 将所有页提取到的数据统一处理
             category_books = []
-            for b in books_data:
+            # ========== 结束：跨页抓取逻辑 ==========
+ 
+            
+                    
+            
+            for b in all_books_data:
                 # Apply decoding logic!
                 t = decode_text(b.get("title", ""))
                 a = decode_text(b.get("author", ""))
