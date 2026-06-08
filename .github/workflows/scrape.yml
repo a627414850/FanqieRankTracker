@@ -56,7 +56,7 @@ jobs:
         fi
 
     - name: Run Scraper
-      if: steps.check_data.outputs.exists == 'false'
+      #if: steps.check_data.outputs.exists == 'false'
       run: python scrape_fanqie_ranks.py
       env:
         GITHUB_ACTIONS: true
