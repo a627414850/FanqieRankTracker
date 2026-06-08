@@ -64,22 +64,37 @@ def run_scraper(limit=30, sleep_sec=5):
         page = context.new_page()
         
         # 先访问新书榜的基准前缀页面，以此为入口模拟人工作业
-        init_url = "https://fanqienovel.com/rank/0_1_1139"
+        # 使用菜单入口的总榜单，这样左侧能看到所有频道（男频/女频等）
+        init_url = "https://fanqienovel.com/rank?enter_from=menu"
+
         print(f"[{datetime.now().strftime('%H:%M:%S')}] 正在初始化并访问基础榜单页：{init_url}")
         page.goto(init_url, wait_until="load", timeout=15000)
         page.wait_for_selector('a[href^="/page/"]', timeout=5000)
         
         # 动态解析页面左侧拥有的所有类别目录 (通过匹配对应的榜单路由规律)
         categories_js = """
-        () => {
-            return Array.from(document.querySelectorAll('a'))
-                .filter(a => a.href.includes('/rank/0_1_'))
-                .map(a => ({
-                    name: a.innerText.trim(),
-                    href: a.getAttribute('href')
-                }));
-        }
-        """
+() => {
+  const links = Array.from(document.querySelectorAll('a'));
+  const categories = [];
+  const seenHrefs = new Set();
+  
+  for (const a of links) {
+    const href = a.getAttribute('href') || '';
+    const name = a.innerText.trim();
+    
+    // 必须有名字，且符合榜单URL格式
+    if (name && /\\/rank\\/\\d+_\\d+_\\d+/.test(href)) {
+      // 对相同的链接进行去重
+      if (!seenHrefs.has(href)) {
+        seenHrefs.add(href);
+        categories.push({ name: name, href: href });
+      }
+    }
+  }
+  return categories;
+}
+"""
+
         categories = page.evaluate(categories_js)
         print(f"✅ 成功自适应提取到 {len(categories)} 个分类标签。开始全量模拟点击抓取下级数据...")
         
