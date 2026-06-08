@@ -197,7 +197,7 @@ def run_scraper(sleep_sec=8, max_retries=3):
                 last_height = page.evaluate("document.body.scrollHeight")
                 for _ in range(3):
                     page.evaluate("window.scrollBy(0, window.innerHeight)")
-                    time.sleep(0.5)
+                    time.sleep(1.5)
 
                 # 智能等待页面数据加载完毕
                 try:
