@@ -105,48 +105,49 @@ def run_scraper(limit=30, sleep_sec=5):
                 continue
                 
             print(f"[{datetime.now().strftime('%H:%M:%S')}] 模拟点击执行类别切换 -> {cat_name}")
-                    try:
-            # 使用 Playwright 模拟真实的人为鼠标定位与点击跳转分类
-            page.locator(f"a[href='{cat_href}']").click()
-            time.sleep(2) # 等待 SPA 页面骨架和组件请求的动画渲染完毕
-            page.wait_for_selector('a[href^="/page/"]', timeout=5000)
-        except Exception as e:
-            print(f"切换分类出错或加载超时 {cat_name}: {e}")
-
-        # ====== 关键修复：先滚回顶部，防止受上一个分类滚动位置的影响 ======
-        page.evaluate("window.scrollTo(0, 0)")
-        time.sleep(1)
-
-        # Scroll to load top ~30 books
-        limit = 30 # 目标抓取数量
-        no_change_count = 0
-        last_book_count = 0
-
-        while True:
-            # 核心改动：滚动到最后一个书籍元素的位置，精准触发懒加载
-            page.evaluate("""
-                const links = document.querySelectorAll('a[href^="/page/"]');
-                if (links.length > 0) {
-                    links[links.length - 1].scrollIntoView({ behavior: 'smooth', block: 'end' });
-                }
-            """)
-            time.sleep(2) # 给懒加载留出渲染时间
-
-            current_book_count = page.evaluate("document.querySelectorAll('a[href^=\"/page/\"]').length")
-
-            # 如果已经抓到30本，直接停止滚动
-            if current_book_count >= limit:
-                break
-
-            # 只有当书籍数量不再增加时，才认为可能到底了
-            if current_book_count == last_book_count:
-                no_change_count += 1
-                # 增加容忍度，连续5次数量不变才退出，防止网络慢误判
-                if no_change_count >= 5:
+            
+            try:
+                # 使用 Playwright 模拟真实的人为鼠标定位与点击跳转分类
+                page.locator(f"a[href='{cat_href}']").click()
+                time.sleep(2) # 等待 SPA 页面骨架和组件请求的动画渲染完毕
+                page.wait_for_selector('a[href^="/page/"]', timeout=5000)
+            except Exception as e:
+                print(f"切换分类出错或加载超时 {cat_name}: {e}")
+    
+            # ====== 关键修复：先滚回顶部，防止受上一个分类滚动位置的影响 ======
+            page.evaluate("window.scrollTo(0, 0)")
+            time.sleep(1)
+    
+            # Scroll to load top ~30 books
+            limit = 30 # 目标抓取数量
+            no_change_count = 0
+            last_book_count = 0
+    
+            while True:
+                # 核心改动：滚动到最后一个书籍元素的位置，精准触发懒加载
+                page.evaluate("""
+                    const links = document.querySelectorAll('a[href^="/page/"]');
+                    if (links.length > 0) {
+                        links[links.length - 1].scrollIntoView({ behavior: 'smooth', block: 'end' });
+                    }
+                """)
+                time.sleep(2) # 给懒加载留出渲染时间
+    
+                current_book_count = page.evaluate("document.querySelectorAll('a[href^=\"/page/\"]').length")
+    
+                # 如果已经抓到30本，直接停止滚动
+                if current_book_count >= limit:
                     break
-            else:
-                no_change_count = 0
-                last_book_count = current_book_count
+    
+                # 只有当书籍数量不再增加时，才认为可能到底了
+                if current_book_count == last_book_count:
+                    no_change_count += 1
+                    # 增加容忍度，连续5次数量不变才退出，防止网络慢误判
+                    if no_change_count >= 5:
+                        break
+                else:
+                    no_change_count = 0
+                    last_book_count = current_book_count
 
 
 
