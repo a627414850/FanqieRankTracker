@@ -144,73 +144,73 @@ def run_scraper(limit=30, sleep_sec=5):
         # Extract cards. Based on helper.js: books usually are inside links a[href^="/page/"]
         # Let's use playwright evaluate to reliably traverse DOM the same way script did.
         extract_js = """
-        () => {
-            const bookMap = new Map();
-            const links = document.querySelectorAll('a[href^="/page/"]');
-            links.forEach(link => {
-                let container = link.parentElement;
-                let depth = 0;
-                while (container && depth < 6) {
-                    if (container.querySelector('img') && container.innerText.includes('在读')) {
-                        const href = link.getAttribute('href');
-                        if (!bookMap.has(href)) {
-                            bookMap.set(href, container);
-                        }
-                        break;
-                    }
-                    container = container.parentElement;
-                    depth++;
+() => {
+    const bookMap = new Map();
+    const links = document.querySelectorAll('a[href^="/page/"]');
+    links.forEach(link => {
+        let container = link.parentElement;
+        let depth = 0;
+        while (container && depth < 6) {
+            if (container.querySelector('img') && container.innerText.includes('在读')) {
+                const href = link.getAttribute('href');
+                if (!bookMap.has(href)) {
+                    bookMap.set(href, container);
                 }
-            });
-
-            const cards = Array.from(bookMap.values());
-            const results = [];
-            for (const item of cards) {
-                let imgNode = item.querySelector('img');
-                let cover = imgNode ? imgNode.getAttribute('src') : "";
-                let title = "";
-                if (imgNode && imgNode.getAttribute('alt')) {
-                    title = imgNode.getAttribute('alt').trim();
-                }
-                if (!title) {
-                    let textTitleNode = item.querySelector('h4, .title, h1') || item.querySelector('a[href^="/page/"]');
-                    if (textTitleNode) {
-                        let text = textTitleNode.innerText.trim();
-                        if (text && !/^\\d+$/.test(text)) {
-                            title = text;
-                        }
-                    }
-                }
-                if (!title) title = "未知";
-                if (title.includes("榜单说明")) continue;
-
-                let authorNode = item.querySelector('.author, .author-name') || item.querySelector('a[href^="/author-page/"]');
-                let author = authorNode ? authorNode.innerText.trim() : "未知";
-
-                let reads = "未知";
-                const lines = item.innerText.split('\\n');
-                for (let line of lines) {
-                    if (line.includes('在读')) {
-                        reads = line; // We'll decode in Python
-                        break;
-                    }
-                }
-
-                let introNode = item.querySelector('.intro, .abstract, .desc');
-                let intro = introNode ? introNode.innerText.trim() : "暂无简介";
-
-                results.push({
-                    title: title,
-                    author: author,
-                    reads: reads,
-                    intro: intro,
-                    cover: cover,
-                    url: item.querySelector('a[href^="/page/"]').getAttribute('href')
-                });
+                break;
             }
-            return results;
+            container = container.parentElement;
+            depth++;
         }
-        """
+    });
+
+    const cards = Array.from(bookMap.values());
+    const results = [];
+    for (const item of cards) {
+        let imgNode = item.querySelector('img');
+        let cover = imgNode ? imgNode.getAttribute('src') : "";
+        let title = "";
+        if (imgNode && imgNode.getAttribute('alt')) {
+            title = imgNode.getAttribute('alt').trim();
+        }
+        if (!title) {
+            let textTitleNode = item.querySelector('h4, .title, h1') || item.querySelector('a[href^="/page/"]');
+            if (textTitleNode) {
+                let text = textTitleNode.innerText.trim();
+                if (text && !/^\\d+$/.test(text)) {
+                    title = text;
+                }
+            }
+        }
+        if (!title) title = "未知";
+        if (title.includes("榜单说明")) continue;
+
+        let authorNode = item.querySelector('.author, .author-name') || item.querySelector('a[href^="/author-page/"]');
+        let author = authorNode ? authorNode.innerText.trim() : "未知";
+
+        let reads = "未知";
+        const lines = item.innerText.split('\\n');
+        for (let line of lines) {
+            if (line.includes('在读')) {
+                reads = line; // We'll decode in Python
+                break;
+            }
+        }
+
+        let introNode = item.querySelector('.intro, .abstract, .desc');
+        let intro = introNode ? introNode.innerText.trim() : "暂无简介";
+
+        results.push({
+            title: title,
+            author: author,
+            reads: reads,
+            intro: intro,
+            cover: cover,
+            url: item.querySelector('a[href^="/page/"]').getAttribute('href')
+        });
+    }
+    return results;
+}
+"""
             try:
                 books_data = page.evaluate(extract_js)
             except Exception as e:
