@@ -211,65 +211,65 @@ def run_scraper(limit=30, sleep_sec=5):
     return results;
 }
 """
-            try:
-                books_data = page.evaluate(extract_js)
-            except Exception as e:
-                print(f"执行JS抽取失败 {cat_name}: {e}")
-                books_data = []
+        try:
+            books_data = page.evaluate(extract_js)
+        except Exception as e:
+            print(f"执行JS抽取失败 {cat_name}: {e}")
+            books_data = []
 
-            category_books = []
-            for b in books_data[:limit]: # Apply decoding logic!
-                t = decode_text(b.get("title", ""))
-                a = decode_text(b.get("author", ""))
-                r_raw = decode_text(b.get("reads", ""))
-                i = decode_text(b.get("intro", "")).replace("\\n", " ")
-                c = b.get("cover", "")
+        category_books = []
+        for b in books_data[:limit]: # Apply decoding logic!
+            t = decode_text(b.get("title", ""))
+            a = decode_text(b.get("author", ""))
+            r_raw = decode_text(b.get("reads", ""))
+            i = decode_text(b.get("intro", "")).replace("\\n", " ")
+            c = b.get("cover", "")
 
-                # Cleanup "Reads" string (e.g. "已完结 在读：34.8万" -> "34.8万")
-                if "在读" in r_raw:
-                    parts = r_raw.split("在读")
-                    if len(parts) > 1: # removes colons
-                        cleaned_r = parts[1].replace(":", "").replace("：", "").strip()
-                    else:
-                        cleaned_r = r_raw
+            # Cleanup "Reads" string (e.g. "已完结 在读：34.8万" -> "34.8万")
+            if "在读" in r_raw:
+                parts = r_raw.split("在读")
+                if len(parts) > 1: # removes colons
+                    cleaned_r = parts[1].replace(":", "").replace("：", "").strip()
                 else:
                     cleaned_r = r_raw
+            else:
+                cleaned_r = r_raw
 
-                category_books.append({
-                    "title": t,
-                    "author": a,
-                    "reads": cleaned_r,
-                    "intro": i,
-                    "cover": c,
-                    "url": "https://fanqienovel.com" + b.get("url", "")
-                })
-
-            # 收集分类数据到内存，并增量写入 JSON
-            all_categories.append({
-                "name": cat_name,
-                "books": category_books
+            category_books.append({
+                "title": t,
+                "author": a,
+                "reads": cleaned_r,
+                "intro": i,
+                "cover": c,
+                "url": "https://fanqienovel.com" + b.get("url", "")
             })
 
-            # 每完成一个分类就写入 JSON（防止中断丢数据）
-            snapshot = {
-                "date": datetime.now().strftime('%Y-%m-%d'),
-                "categories": all_categories
-            }
-            with open(output_file, 'w', encoding='utf-8') as f:
-                json.dump(snapshot, f, ensure_ascii=False, indent=2)
+        # 收集分类数据到内存，并增量写入 JSON
+        all_categories.append({
+            "name": cat_name,
+            "books": category_books
+        })
 
-            # 更新状态记录
-            completed_cats.append(cat_name)
-            with open(state_file, "w", encoding="utf-8") as f:
-                json.dump({"completed": completed_cats}, f, ensure_ascii=False)
+        # 每完成一个分类就写入 JSON（防止中断丢数据）
+        snapshot = {
+            "date": datetime.now().strftime('%Y-%m-%d'),
+            "categories": all_categories
+        }
+        with open(output_file, 'w', encoding='utf-8') as f:
+            json.dump(snapshot, f, ensure_ascii=False, indent=2)
 
-            print(f"成功抓取 {cat_name} 类别的前 {len(category_books)} 本书，且进度已存档。等待 {sleep_sec} 秒防拦截...")
+        # 更新状态记录
+        completed_cats.append(cat_name)
+        with open(state_file, "w", encoding="utf-8") as f:
+            json.dump({"completed": completed_cats}, f, ensure_ascii=False)
 
-            # 保护防封禁机制
-            time.sleep(sleep_sec)
+        print(f"成功抓取 {cat_name} 类别的前 {len(category_books)} 本书，且进度已存档。等待 {sleep_sec} 秒防拦截...")
 
-        browser.close()
-        print(f"\n✅ 当日选定类目任务已完毕或刷新！数据源：{output_file}")
+        # 保护防封禁机制
+        time.sleep(sleep_sec)
+
+    browser.close()
+    print(f"\n✅ 当日选定类目任务已完毕或刷新！数据源：{output_file}")
 
 if __name__ == "__main__":
     print("开始执行番茄女频新书榜抓取计划...")
