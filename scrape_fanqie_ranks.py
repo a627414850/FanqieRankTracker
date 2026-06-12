@@ -115,23 +115,33 @@ def run_scraper(limit=30, sleep_sec=5):
             
             # Scroll to load top ~30 books
             # 持续滚动直到页面底部，加载全部小说
+            limit = 30  # 目标抓取数量
             no_change_count = 0
             last_height = 0
-            
+            last_book_count = 0
+        
             while True:
                 page.evaluate("window.scrollBy(0, window.innerHeight)")
-                time.sleep(2)  # 增加等待时间到2秒，确保懒加载触发
+                time.sleep(3)  # 稍微加长等待时间，确保懒加载触发
                 
+                # 获取当前页面上的书籍数量
+                current_book_count = page.evaluate("document.querySelectorAll('a[href^=\"/page/\"]').length")
                 current_height = page.evaluate("document.body.scrollHeight")
                 
-                if current_height == last_height:
+                # 如果已经抓到30本，直接停止滚动
+                if current_book_count >= limit:
+                    break
+                    
+                # 高度和数量都不再变化，才认为到底了
+                if current_height == last_height and current_book_count == last_book_count:
                     no_change_count += 1
-                    # 连续 3 次高度没有变化，才确认真正到底了
                     if no_change_count >= 3:
                         break
                 else:
-                    no_change_count = 0  # 只要有新内容加载出来，计数器就归零
+                    no_change_count = 0
                     last_height = current_height
+                    last_book_count = current_book_count
+
 
                 
             # Extract cards. Based on helper.js: books usually are inside links a[href^="/page/"]
