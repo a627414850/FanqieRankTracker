@@ -5,16 +5,16 @@
     "7": {
       "period": "近 7 日",
       "source": "rule",
-      "summary": "近 7 日里，现代言情、幻想言情 的阅读增长更强，具体分类以 豪门总裁、青春甜宠、年代 的新增在读更集中；新书题材上 重生、系统、女配、反派、快穿、甜宠 更高频，说明读者仍偏好强设定、强情绪钩子和明确爽点。",
-      "fallback_summary": "近 7 日里，现代言情、幻想言情 的阅读增长更强，具体分类以 豪门总裁、青春甜宠、年代 的新增在读更集中；新书题材上 重生、系统、女配、反派、快穿、甜宠 更高频，说明读者仍偏好强设定、强情绪钩子和明确爽点。",
+      "summary": "近 7 日里，现代言情、幻想言情 的阅读增长更强，具体分类以 豪门总裁、青春甜宠、年代 的新增在读更集中；新书题材上 重生、系统、女配、反派、炮灰、快穿 更高频，说明读者仍偏好强设定、强情绪钩子和明确爽点。",
+      "fallback_summary": "近 7 日里，现代言情、幻想言情 的阅读增长更强，具体分类以 豪门总裁、青春甜宠、年代 的新增在读更集中；新书题材上 重生、系统、女配、反派、炮灰、快穿 更高频，说明读者仍偏好强设定、强情绪钩子和明确爽点。",
       "hot_genres": [
         {
           "name": "现代言情",
-          "score": 917000,
+          "score": 913000,
           "new_count": 71,
           "dropped_count": 111,
           "read_count": 74,
-          "read_growth_total": 917000.0,
+          "read_growth_total": 913000.0,
           "active_days": 28,
           "lead_category": "豪门总裁",
           "categories": [
@@ -144,23 +144,28 @@
       "hot_themes": [
         {
           "name": "重生",
-          "count": 19,
+          "count": 18,
           "category_count": 13
         },
         {
           "name": "系统",
-          "count": 16,
+          "count": 15,
           "category_count": 9
         },
         {
           "name": "女配",
-          "count": 15,
-          "category_count": 9
+          "count": 14,
+          "category_count": 8
         },
         {
           "name": "反派",
           "count": 13,
           "category_count": 11
+        },
+        {
+          "name": "炮灰",
+          "count": 13,
+          "category_count": 8
         },
         {
           "name": "快穿",
@@ -178,14 +183,14 @@
           "category_count": 8
         },
         {
-          "name": "炮灰",
-          "count": 12,
-          "category_count": 7
-        },
-        {
           "name": "末世",
           "count": 12,
           "category_count": 5
+        },
+        {
+          "name": "团宠",
+          "count": 9,
+          "category_count": 9
         },
         {
           "name": "双洁",
@@ -193,22 +198,17 @@
           "category_count": 7
         },
         {
-          "name": "豪门",
-          "count": 9,
-          "category_count": 5
-        },
-        {
           "name": "年代",
           "count": 9,
           "category_count": 4
         },
         {
-          "name": "团宠",
+          "name": "空间",
           "count": 8,
-          "category_count": 8
+          "category_count": 4
         },
         {
-          "name": "空间",
+          "name": "豪门",
           "count": 8,
           "category_count": 4
         }
@@ -217,16 +217,16 @@
     "14": {
       "period": "近 14 日",
       "source": "rule",
-      "summary": "近 14 日里，现代言情、古风言情 的阅读增长更强，具体分类以 豪门总裁、现言脑洞、年代 的新增在读更集中；新书题材上 重生、女配、系统、快穿、反派、末世 更高频，说明读者仍偏好强设定、强情绪钩子和明确爽点。",
-      "fallback_summary": "近 14 日里，现代言情、古风言情 的阅读增长更强，具体分类以 豪门总裁、现言脑洞、年代 的新增在读更集中；新书题材上 重生、女配、系统、快穿、反派、末世 更高频，说明读者仍偏好强设定、强情绪钩子和明确爽点。",
+      "summary": "近 14 日里，现代言情、古风言情 的阅读增长更强，具体分类以 豪门总裁、现言脑洞、年代 的新增在读更集中；新书题材上 重生、女配、系统、快穿、反派、炮灰 更高频，说明读者仍偏好强设定、强情绪钩子和明确爽点。",
+      "fallback_summary": "近 14 日里，现代言情、古风言情 的阅读增长更强，具体分类以 豪门总裁、现言脑洞、年代 的新增在读更集中；新书题材上 重生、女配、系统、快穿、反派、炮灰 更高频，说明读者仍偏好强设定、强情绪钩子和明确爽点。",
       "hot_genres": [
         {
           "name": "现代言情",
-          "score": 2356000,
+          "score": 2352000,
           "new_count": 107,
           "dropped_count": 147,
           "read_count": 158,
-          "read_growth_total": 2356000.0,
+          "read_growth_total": 2352000.0,
           "active_days": 56,
           "lead_category": "豪门总裁",
           "categories": [
@@ -309,11 +309,11 @@
         },
         {
           "name": "现言脑洞",
-          "score": 460000,
+          "score": 456000,
           "new_count": 27,
           "dropped_count": 37,
           "read_count": 41,
-          "read_growth_total": 460000.0,
+          "read_growth_total": 456000.0,
           "active_days": 14
         },
         {
@@ -356,17 +356,17 @@
       "hot_themes": [
         {
           "name": "重生",
-          "count": 27,
+          "count": 26,
           "category_count": 14
         },
         {
           "name": "女配",
-          "count": 22,
-          "category_count": 11
+          "count": 21,
+          "category_count": 10
         },
         {
           "name": "系统",
-          "count": 22,
+          "count": 21,
           "category_count": 9
         },
         {
@@ -380,24 +380,24 @@
           "category_count": 11
         },
         {
+          "name": "炮灰",
+          "count": 16,
+          "category_count": 8
+        },
+        {
           "name": "末世",
           "count": 16,
           "category_count": 5
         },
         {
+          "name": "团宠",
+          "count": 15,
+          "category_count": 12
+        },
+        {
           "name": "穿书",
           "count": 15,
           "category_count": 10
-        },
-        {
-          "name": "炮灰",
-          "count": 15,
-          "category_count": 7
-        },
-        {
-          "name": "团宠",
-          "count": 14,
-          "category_count": 11
         },
         {
           "name": "甜宠",
@@ -406,8 +406,8 @@
         },
         {
           "name": "豪门",
-          "count": 11,
-          "category_count": 6
+          "count": 10,
+          "category_count": 5
         },
         {
           "name": "双洁",
@@ -434,11 +434,11 @@
       "hot_genres": [
         {
           "name": "现代言情",
-          "score": 6712000,
+          "score": 6708000,
           "new_count": 194,
           "dropped_count": 234,
           "read_count": 350,
-          "read_growth_total": 6712000.0,
+          "read_growth_total": 6708000.0,
           "active_days": 120,
           "lead_category": "豪门总裁",
           "categories": [
@@ -521,11 +521,11 @@
         },
         {
           "name": "现言脑洞",
-          "score": 1971000,
+          "score": 1967000,
           "new_count": 49,
           "dropped_count": 59,
           "read_count": 89,
-          "read_growth_total": 1971000.0,
+          "read_growth_total": 1967000.0,
           "active_days": 30
         },
         {
@@ -573,17 +573,17 @@
         },
         {
           "name": "女配",
-          "count": 42,
-          "category_count": 12
+          "count": 41,
+          "category_count": 11
         },
         {
           "name": "重生",
-          "count": 40,
+          "count": 39,
           "category_count": 16
         },
         {
           "name": "系统",
-          "count": 33,
+          "count": 32,
           "category_count": 12
         },
         {
@@ -593,7 +593,7 @@
         },
         {
           "name": "炮灰",
-          "count": 23,
+          "count": 24,
           "category_count": 8
         },
         {
@@ -603,7 +603,7 @@
         },
         {
           "name": "团宠",
-          "count": 21,
+          "count": 22,
           "category_count": 13
         },
         {
@@ -613,8 +613,8 @@
         },
         {
           "name": "豪门",
-          "count": 17,
-          "category_count": 7
+          "count": 16,
+          "category_count": 6
         },
         {
           "name": "逃荒",
@@ -646,11 +646,11 @@
       "hot_genres": [
         {
           "name": "现代言情",
-          "score": 12709000,
+          "score": 12705000,
           "new_count": 361,
           "dropped_count": 401,
           "read_count": 686,
-          "read_growth_total": 12709000.0,
+          "read_growth_total": 12705000.0,
           "active_days": 232,
           "lead_category": "豪门总裁",
           "categories": [
@@ -733,11 +733,11 @@
         },
         {
           "name": "现言脑洞",
-          "score": 3809000,
+          "score": 3805000,
           "new_count": 86,
           "dropped_count": 96,
           "read_count": 173,
-          "read_growth_total": 3809000.0,
+          "read_growth_total": 3805000.0,
           "active_days": 58
         },
         {
@@ -785,17 +785,17 @@
         },
         {
           "name": "女配",
-          "count": 72,
-          "category_count": 15
+          "count": 71,
+          "category_count": 14
         },
         {
           "name": "重生",
-          "count": 65,
+          "count": 64,
           "category_count": 16
         },
         {
           "name": "系统",
-          "count": 49,
+          "count": 48,
           "category_count": 12
         },
         {
@@ -805,7 +805,7 @@
         },
         {
           "name": "炮灰",
-          "count": 41,
+          "count": 42,
           "category_count": 12
         },
         {
@@ -815,7 +815,7 @@
         },
         {
           "name": "团宠",
-          "count": 33,
+          "count": 34,
           "category_count": 13
         },
         {
@@ -825,7 +825,7 @@
         },
         {
           "name": "豪门",
-          "count": 26,
+          "count": 25,
           "category_count": 8
         },
         {
