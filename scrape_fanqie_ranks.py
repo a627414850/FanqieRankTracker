@@ -23,18 +23,17 @@ def decode_text(text: str) -> str:
             result.append(char)
     return "".join(result)
 
-# 我们将直接从页面解析所有新书榜类别目录，实现动态抓取
 OUTPUT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
 
 def run_scraper(limit=30, sleep_sec=5):
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     date_str = datetime.now().strftime("%Y%m%d")
-    output_file = os.path.join(OUTPUT_DIR, f"fanqie_female_new_ranks_{date_str}.json")
+    output_file = os.path.join(OUTPUT_DIR, f"fanqie_new_ranks_{date_str}.json")
     state_file = os.path.join(OUTPUT_DIR, f"task_state_{date_str}.json")
 
     # ------------- 状态恢复逻辑 -------------
     completed_cats = []
-    all_categories = [] # 收集所有分类数据
+    all_categories = []
 
     if os.path.exists(state_file):
         with open(state_file, "r", encoding="utf-8") as f:
@@ -44,7 +43,6 @@ def run_scraper(limit=30, sleep_sec=5):
             except:
                 pass
 
-    # 如果有中断恢复的数据，先加载已有的 JSON
     if os.path.exists(output_file) and len(completed_cats) > 0:
         with open(output_file, "r", encoding="utf-8") as f:
             try:
@@ -60,19 +58,12 @@ def run_scraper(limit=30, sleep_sec=5):
         else:
             browser = p.chromium.launch(headless=True, channel="chrome")
 
-        # Create a new context with a normal user agent
         context = browser.new_context(
             user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         )
         page = context.new_page()
 
-        # 先访问新书榜的基准前缀页面，以此为入口模拟人工作业
-        init_url = "https://fanqienovel.com/rank?enter_from=menu"
-        print(f"[{datetime.now().strftime('%H:%M:%S')}] 正在初始化并访问基础榜单页：{init_url}")
-        page.goto(init_url, wait_until="load", timeout=15000)
-        page.wait_for_selector('a[href^="/page/"]', timeout=5000)
-
-        # 动态解析页面左侧拥有的所有类别目录 (通过匹配对应的榜单路由规律)
+        # ===== 提取分类用的 JS =====
         categories_js = """
         () => {
             const links = Array.from(document.querySelectorAll('a'));
@@ -81,9 +72,7 @@ def run_scraper(limit=30, sleep_sec=5):
             for (const a of links) {
                 const href = a.getAttribute('href') || '';
                 const name = a.innerText.trim();
-                // 必须有名字，且符合榜单URL格式
                 if (name && /\\/rank\\/\\d+_\\d+_\\d+/.test(href)) {
-                    // 对相同的链接进行去重
                     if (!seenHrefs.has(href)) {
                         seenHrefs.add(href);
                         categories.push({ name: name, href: href });
@@ -93,41 +82,81 @@ def run_scraper(limit=30, sleep_sec=5):
             return categories;
         }
         """
-        categories = page.evaluate(categories_js)
-        print(f"✅ 成功自适应提取到 {len(categories)} 个分类标签。开始全量模拟点击抓取下级数据...")
 
-        for cat in categories:
+        # ===== 第一步：访问初始页面，提取女频分类 =====
+        init_url = "https://fanqienovel.com/rank?enter_from=menu"
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] 正在初始化并访问基础榜单页：{init_url}")
+        page.goto(init_url, wait_until="load", timeout=15000)
+        page.wait_for_selector('a[href^="/page/"]', timeout=5000)
+
+        female_categories = page.evaluate(categories_js)
+        for cat in female_categories:
+            cat["channel"] = "女频"
+        print(f"✅ 提取到女频 {len(female_categories)} 个分类标签。")
+
+        # ===== 第二步：查找男频链接并切换，提取男频分类 =====
+        male_categories = []
+        try:
+            male_link_js = """
+            () => {
+                const links = Array.from(document.querySelectorAll('a'));
+                for (const a of links) {
+                    const text = a.innerText.trim();
+                    const href = a.getAttribute('href') || '';
+                    if (text && (text === '男频' || text === '男频新书' || text === '男生') && href && href.includes('/rank')) {
+                        return { text: text, href: href };
+                    }
+                }
+                return null;
+            }
+            """
+            male_link = page.evaluate(male_link_js)
+
+            if male_link and male_link.get('href'):
+                male_url = "https://fanqienovel.com" + male_link['href'] if male_link['href'].startswith('/') else male_link['href']
+                print(f"[{datetime.now().strftime('%H:%M:%S')}] 正在导航到男频页面：{male_url}")
+                page.goto(male_url, wait_until="load", timeout=15000)
+                page.wait_for_selector('a[href^="/page/"]', timeout=5000)
+
+                male_categories = page.evaluate(categories_js)
+                for cat in male_categories:
+                    cat["channel"] = "男频"
+                print(f"✅ 提取到男频 {len(male_categories)} 个分类标签。")
+            else:
+                print("⚠️ 未在页面上找到男频链接，跳过男频抓取。")
+        except Exception as e:
+            print(f"⚠️ 切换到男频失败: {e}")
+
+        # ===== 第三步：合并所有分类 =====
+        all_channel_categories = female_categories + male_categories
+        print(f"✅ 共提取到 {len(all_channel_categories)} 个分类标签（女频 {len(female_categories)} + 男频 {len(male_categories)}）。开始全量抓取...")
+
+        # ===== 第四步：逐个导航到分类URL并抓取 =====
+        for cat in all_channel_categories:
             cat_name = cat["name"]
+            cat_channel = cat.get("channel", "")
+            cat_full_name = f"{cat_channel}-{cat_name}" if cat_channel else cat_name
             cat_href = cat["href"]
 
-            if cat_name in completed_cats:
-                print(f"[{datetime.now().strftime('%H:%M:%S')}] ⏭️ 跳过今日已经完成抓取的类别：{cat_name}")
+            if cat_full_name in completed_cats:
+                print(f"[{datetime.now().strftime('%H:%M:%S')}] ⏭️ 跳过今日已经完成抓取的类别：{cat_full_name}")
                 continue
 
-            print(f"[{datetime.now().strftime('%H:%M:%S')}] 模拟点击执行类别切换 -> {cat_name}")
+            print(f"[{datetime.now().strftime('%H:%M:%S')}] 模拟导航到分类 -> {cat_full_name}")
 
             try:
-                # 使用 Playwright 模拟真实的人为鼠标定位与点击跳转分类
-                page.locator(f"a[href='{cat_href}']").click()
-                time.sleep(2) # 等待 SPA 页面骨架和组件请求的动画渲染完毕
+                cat_url = "https://fanqienovel.com" + cat_href
+                page.goto(cat_url, wait_until="load", timeout=15000)
                 page.wait_for_selector('a[href^="/page/"]', timeout=5000)
             except Exception as e:
-                print(f"切换分类出错或加载超时 {cat_name}: {e}")
+                print(f"导航到分类出错或加载超时 {cat_full_name}: {e}")
 
-            # ====== 终极修复：废弃不可靠的高度判断，改用固定次数强制滚动加载 ======
-            # 1. 先回到顶部，防止上个分类的滚动位置影响
-            page.evaluate("window.scrollTo(0, 0)")
-            time.sleep(1)
-            
-            # 2. 强制向下滚动 8 次，每次滚 1.5 屏，等待 3 秒让懒加载充分触发
-            # 只要滚够了次数，不管网络多慢，30本书绝对能全部渲染出来
+            # 滚动加载：固定8次，每次1.5屏，等待3秒
             for _ in range(8):
                 page.evaluate("window.scrollBy(0, window.innerHeight * 1.5)")
                 time.sleep(3)
-            # ==================================================================
 
-            # Extract cards. Based on helper.js: books usually are inside links a[href^="/page/"]
-            # Let's use playwright evaluate to reliably traverse DOM the same way script did.
+            # 提取数据
             extract_js = """
             () => {
                 const bookMap = new Map();
@@ -176,7 +205,7 @@ def run_scraper(limit=30, sleep_sec=5):
                     const lines = item.innerText.split('\\n');
                     for (let line of lines) {
                         if (line.includes('在读')) {
-                            reads = line; // We'll decode in Python
+                            reads = line;
                             break;
                         }
                     }
@@ -199,21 +228,20 @@ def run_scraper(limit=30, sleep_sec=5):
             try:
                 books_data = page.evaluate(extract_js)
             except Exception as e:
-                print(f"执行JS抽取失败 {cat_name}: {e}")
+                print(f"执行JS抽取失败 {cat_full_name}: {e}")
                 books_data = []
 
             category_books = []
-            for b in books_data[:limit]: # Apply decoding logic!
+            for b in books_data[:limit]:
                 t = decode_text(b.get("title", ""))
                 a = decode_text(b.get("author", ""))
                 r_raw = decode_text(b.get("reads", ""))
                 i = decode_text(b.get("intro", "")).replace("\\n", " ")
                 c = b.get("cover", "")
 
-                # Cleanup "Reads" string (e.g. "已完结 在读：34.8万" -> "34.8万")
                 if "在读" in r_raw:
                     parts = r_raw.split("在读")
-                    if len(parts) > 1: # removes colons
+                    if len(parts) > 1:
                         cleaned_r = parts[1].replace(":", "").replace("：", "").strip()
                     else:
                         cleaned_r = r_raw
@@ -229,13 +257,12 @@ def run_scraper(limit=30, sleep_sec=5):
                     "url": "https://fanqienovel.com" + b.get("url", "")
                 })
 
-            # 收集分类数据到内存，并增量写入 JSON
             all_categories.append({
-                "name": cat_name,
+                "name": cat_full_name,
+                "channel": cat_channel,
                 "books": category_books
             })
 
-            # 每完成一个分类就写入 JSON（防止中断丢数据）
             snapshot = {
                 "date": datetime.now().strftime('%Y-%m-%d'),
                 "categories": all_categories
@@ -243,19 +270,21 @@ def run_scraper(limit=30, sleep_sec=5):
             with open(output_file, 'w', encoding='utf-8') as f:
                 json.dump(snapshot, f, ensure_ascii=False, indent=2)
 
-            # 更新状态记录
-            completed_cats.append(cat_name)
+            completed_cats.append(cat_full_name)
             with open(state_file, "w", encoding="utf-8") as f:
                 json.dump({"completed": completed_cats}, f, ensure_ascii=False)
 
-            print(f"成功抓取 {cat_name} 类别的前 {len(category_books)} 本书，且进度已存档。等待 {sleep_sec} 秒防拦截...")
+            print(f"成功抓取 {cat_full_name} 类别的前 {len(category_books)} 本书，且进度已存档。等待 {sleep_sec} 秒防拦截...")
 
-            # 保护防封禁机制
             time.sleep(sleep_sec)
 
         browser.close()
 
     print(f"\n✅ 当日选定类目任务已完毕或刷新！数据源：{output_file}")
+
+if __name__ == "__main__":
+    print("开始执行番茄新书榜抓取计划...")
+    run_scraper(limit=30, sleep_sec=5)
 
 if __name__ == "__main__":
     print("开始执行番茄女频新书榜抓取计划...")
