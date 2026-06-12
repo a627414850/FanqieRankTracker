@@ -122,27 +122,37 @@ def run_scraper(limit=30, sleep_sec=5):
             time.sleep(1)
     
             # Scroll to load top ~30 books
-            limit = 30 # 目标抓取数量
+            # ====== 修改后的滚动逻辑：用“滚动到最后一个书籍元素”来精准触发懒加载 ======
+            limit = 30  # 目标抓取数量
             no_change_count = 0
-            last_height = 0
+            last_book_count = 0
     
             while True:
-                # ====== 关键修复2：每次只滚半屏，模拟更细腻的人为下拉 ======
-                # 以前滚一整屏可能直接跳过懒加载触发点，半屏更稳
-                page.evaluate("window.scrollBy(0, window.innerHeight / 2)")
-                time.sleep(2) # 给懒加载留出渲染时间
+                # 1. 滚动到当前最后一本书的位置，让它进入视口，触发懒加载
+                page.evaluate("""
+                    const links = document.querySelectorAll('a[href^="/page/"]');
+                    if (links.length > 0) {
+                        links[links.length - 1].scrollIntoView({ behavior: 'smooth', block: 'end' });
+                    }
+                """)
+                time.sleep(2)  # 给懒加载一点时间渲染
     
-                current_height = page.evaluate("document.body.scrollHeight")
+                # 2. 统计当前书籍数量
+                current_book_count = page.evaluate("document.querySelectorAll('a[href^=\"/page/\"]').length")
     
-                if current_height == last_height:
+                # 3. 如果已经达到 30 本，提前结束
+                if current_book_count >= limit:
+                    break
+    
+                # 4. 如果数量连续多次不变，认为到底了
+                if current_book_count == last_book_count:
                     no_change_count += 1
-                    # ====== 关键修复3：增加容错，连续5次高度不变才认为到底 ======
-                    # 以前3次就停，现在多等2次，防止网络慢误判
-                    if no_change_count >= 5:
+                    if no_change_count >= 5:  # 增加一点容错，防止网络慢误判
                         break
                 else:
                     no_change_count = 0
-                    last_height = current_height
+                    last_book_count = current_book_count
+
 
 
                 
