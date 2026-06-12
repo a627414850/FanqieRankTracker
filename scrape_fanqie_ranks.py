@@ -30,7 +30,6 @@ def run_scraper(limit=30, sleep_sec=5):
     output_file = os.path.join(OUTPUT_DIR, f"fanqie_new_ranks_{date_str}.json")
     state_file = os.path.join(OUTPUT_DIR, f"task_state_{date_str}.json")
 
-    # ------------- 状态恢复逻辑 -------------
     completed_cats = []
     all_categories = []
 
@@ -49,7 +48,6 @@ def run_scraper(limit=30, sleep_sec=5):
                 all_categories = existing.get("categories", [])
             except:
                 pass
-    # ----------------------------------------
 
     with sync_playwright() as p:
         if os.environ.get("GITHUB_ACTIONS"):
@@ -62,7 +60,7 @@ def run_scraper(limit=30, sleep_sec=5):
         )
         page = context.new_page()
 
-        # 提取分类用的 JS
+        # 提取左侧分类列表的 JS
         categories_js = """
         () => {
             const links = Array.from(document.querySelectorAll('a'));
@@ -82,7 +80,77 @@ def run_scraper(limit=30, sleep_sec=5):
         }
         """
 
-        # ===== 第一步：访问初始页面，提取女频分类 =====
+        # 提取书籍数据的 JS
+        extract_js = """
+        () => {
+            const bookMap = new Map();
+            const links = document.querySelectorAll('a[href^="/page/"]');
+            links.forEach(link => {
+                let container = link.parentElement;
+                let depth = 0;
+                while (container && depth < 6) {
+                    if (container.querySelector('img') && container.innerText.includes('在读')) {
+                        const href = link.getAttribute('href');
+                        if (!bookMap.has(href)) {
+                            bookMap.set(href, container);
+                        }
+                        break;
+                    }
+                    container = container.parentElement;
+                    depth++;
+                }
+            });
+
+            const cards = Array.from(bookMap.values());
+            const results = [];
+            for (const item of cards) {
+                let imgNode = item.querySelector('img');
+                let cover = imgNode ? imgNode.getAttribute('src') : "";
+                let title = "";
+                if (imgNode && imgNode.getAttribute('alt')) {
+                    title = imgNode.getAttribute('alt').trim();
+                }
+                if (!title) {
+                    let textTitleNode = item.querySelector('h4, .title, h1') || item.querySelector('a[href^="/page/"]');
+                    if (textTitleNode) {
+                        let text = textTitleNode.innerText.trim();
+                        if (text && !/^\\d+$/.test(text)) {
+                            title = text;
+                        }
+                    }
+                }
+                if (!title) title = "未知";
+                if (title.includes("榜单说明")) continue;
+
+                let authorNode = item.querySelector('.author, .author-name') || item.querySelector('a[href^="/author-page/"]');
+                let author = authorNode ? authorNode.innerText.trim() : "未知";
+
+                let reads = "未知";
+                const lines = item.innerText.split('\\n');
+                for (let line of lines) {
+                    if (line.includes('在读')) {
+                        reads = line;
+                        break;
+                    }
+                }
+
+                let introNode = item.querySelector('.intro, .abstract, .desc');
+                let intro = introNode ? introNode.innerText.trim() : "暂无简介";
+
+                results.push({
+                    title: title,
+                    author: author,
+                    reads: reads,
+                    intro: intro,
+                    cover: cover,
+                    url: item.querySelector('a[href^="/page/"]').getAttribute('href')
+                });
+            }
+            return results;
+        }
+        """
+
+        # ===== 1. 访问初始页面，提取女频分类 =====
         init_url = "https://fanqienovel.com/rank?enter_from=menu"
         print(f"[{datetime.now().strftime('%H:%M:%S')}] 正在初始化并访问基础榜单页：{init_url}")
         page.goto(init_url, wait_until="load", timeout=15000)
@@ -93,35 +161,27 @@ def run_scraper(limit=30, sleep_sec=5):
             cat["channel"] = "女频"
         print(f"✅ 提取到女频 {len(female_categories)} 个分类标签。")
 
-        # ===== 第二步：从女频URL推算男频URL，直接导航提取 =====
-        # URL规则：/rank/X_Y_Z 中 X=0 是女频，X=1 是男频
+        # ===== 2. 点击"男频"标签，提取男频分类 =====
         male_categories = []
         try:
-            # 取女频第一个分类，把 X 从 0 改成 1，就是男频的对应页面
-            if female_categories:
-                first_female_href = female_categories[0]["href"]
-                # /rank/0_1_1139 -> /rank/1_1_1139
-                male_entry_href = "/rank/1" + first_female_href[first_female_href.index("_"):]
-                male_entry_url = "https://fanqienovel.com" + male_entry_href
+            # 用 Playwright 的 text 选择器点击男频标签
+            print(f"[{datetime.now().strftime('%H:%M:%S')}] 正在点击男频标签切换页面...")
+            page.locator("text=男频").first.click()
+            time.sleep(3)
+            page.wait_for_selector('a[href^="/page/"]', timeout=10000)
 
-                print(f"[{datetime.now().strftime('%H:%M:%S')}] 正在导航到男频页面：{male_entry_url}")
-                page.goto(male_entry_url, wait_until="load", timeout=15000)
-                page.wait_for_selector('a[href^="/page/"]', timeout=5000)
-
-                male_categories = page.evaluate(categories_js)
-                for cat in male_categories:
-                    cat["channel"] = "男频"
-                print(f"✅ 提取到男频 {len(male_categories)} 个分类标签。")
-            else:
-                print("⚠️ 未提取到女频分类，无法推算男频URL。")
+            male_categories = page.evaluate(categories_js)
+            for cat in male_categories:
+                cat["channel"] = "男频"
+            print(f"✅ 提取到男频 {len(male_categories)} 个分类标签。")
         except Exception as e:
-            print(f"⚠️ 导航到男频失败: {e}")
+            print(f"⚠️ 切换到男频失败: {e}")
 
-        # ===== 第三步：合并所有分类 =====
+        # ===== 3. 合并所有分类 =====
         all_channel_categories = female_categories + male_categories
         print(f"✅ 共提取到 {len(all_channel_categories)} 个分类标签（女频 {len(female_categories)} + 男频 {len(male_categories)}）。开始全量抓取...")
 
-        # ===== 第四步：逐个导航到分类URL并抓取 =====
+        # ===== 4. 逐个导航到分类URL并抓取 =====
         for cat in all_channel_categories:
             cat_name = cat["name"]
             cat_channel = cat.get("channel", "")
@@ -145,75 +205,7 @@ def run_scraper(limit=30, sleep_sec=5):
             for _ in range(8):
                 page.evaluate("window.scrollBy(0, window.innerHeight * 1.5)")
                 time.sleep(3)
-            # 提取数据
-            extract_js = """
-            () => {
-                const bookMap = new Map();
-                const links = document.querySelectorAll('a[href^="/page/"]');
-                links.forEach(link => {
-                    let container = link.parentElement;
-                    let depth = 0;
-                    while (container && depth < 6) {
-                        if (container.querySelector('img') && container.innerText.includes('在读')) {
-                            const href = link.getAttribute('href');
-                            if (!bookMap.has(href)) {
-                                bookMap.set(href, container);
-                            }
-                            break;
-                        }
-                        container = container.parentElement;
-                        depth++;
-                    }
-                });
 
-                const cards = Array.from(bookMap.values());
-                const results = [];
-                for (const item of cards) {
-                    let imgNode = item.querySelector('img');
-                    let cover = imgNode ? imgNode.getAttribute('src') : "";
-                    let title = "";
-                    if (imgNode && imgNode.getAttribute('alt')) {
-                        title = imgNode.getAttribute('alt').trim();
-                    }
-                    if (!title) {
-                        let textTitleNode = item.querySelector('h4, .title, h1') || item.querySelector('a[href^="/page/"]');
-                        if (textTitleNode) {
-                            let text = textTitleNode.innerText.trim();
-                            if (text && !/^\\d+$/.test(text)) {
-                                title = text;
-                            }
-                        }
-                    }
-                    if (!title) title = "未知";
-                    if (title.includes("榜单说明")) continue;
-
-                    let authorNode = item.querySelector('.author, .author-name') || item.querySelector('a[href^="/author-page/"]');
-                    let author = authorNode ? authorNode.innerText.trim() : "未知";
-
-                    let reads = "未知";
-                    const lines = item.innerText.split('\\n');
-                    for (let line of lines) {
-                        if (line.includes('在读')) {
-                            reads = line;
-                            break;
-                        }
-                    }
-
-                    let introNode = item.querySelector('.intro, .abstract, .desc');
-                    let intro = introNode ? introNode.innerText.trim() : "暂无简介";
-
-                    results.push({
-                        title: title,
-                        author: author,
-                        reads: reads,
-                        intro: intro,
-                        cover: cover,
-                        url: item.querySelector('a[href^="/page/"]').getAttribute('href')
-                    });
-                }
-                return results;
-            }
-            """
             try:
                 books_data = page.evaluate(extract_js)
             except Exception as e:
