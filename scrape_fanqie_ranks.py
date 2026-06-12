@@ -9,7 +9,6 @@ CHAR_SEQUENCE = [
     "D", "在", "主", "特", "家", "军", "然", "表", "场", "4", "要", "只", "v", "和", "?", "6", "别", "还", "g", "现", "儿", "岁", "?", "?", "此", "象", "月", "3", "出", "战", "工", "相", "o", "男", "直", "失", "世", "F", "都", "平", "文", "什", "V", "O", "将", "真", "T", "那", "当", "?", "会", "立", "些", "u", "是", "十", "张", "学", "气", "大", "爱", "两", "命", "全", "后", "东", "性", "通", "被", "1", "它", "乐", "接", "而", "感", "车", "山", "公", "了", "常", "以", "何", "可", "话", "先", "p", "i", "叫", "轻", "M", "士", "w", "着", "变", "尔", "快", "l", "个", "说", "少", "色", "里", "安", "花", "远", "7", "难", "师", "放", "t", "报", "认", "面", "道", "S", "?", "克", "地", "度", "I", "好", "机", "U", "民", "写", "把", "万", "同", "水", "新", "没", "书", "电", "吃", "像", "斯", "5", "为", "y", "白", "几", "日", "教", "看", "但", "第", "加", "候", "作", "上", "拉", "住", "有", "法", "r", "事", "应", "位", "利", "你", "声", "身", "国", "问", "马", "女", "他", "Y", "比", "父", "x", "A", "H", "N", "s", "X", "边", "美", "对", "所", "金", "活", "回", "意", "到", "z", "从", "j", "知", "又", "内", "因", "点", "Q", "三", "定", "8", "R", "b", "正", "或", "夫", "向", "德", "听", "更", "?", "得", "告", "并", "本", "q", "过", "记", "L", "让", "打", "f", "人", "就", "者", "去", "原", "满", "体", "做", "经", "K", "走", "如", "孩", "c", "G", "给", "使", "物", "?", "最", "笑", "部", "?", "员", "等", "受", "k", "行", "一", "条", "果", "动", "光", "门", "头", "见", "往", "自", "解", "成", "处", "天", "能", "于", "名", "其", "发", "总", "母", "的", "死", "手", "入", "路", "进", "心", "来", "h", "时", "力", "多", "开", "已", "许", "d", "至", "由", "很", "界", "n", "小", "与", "Z", "想", "代", "么", "分", "生", "口", "再", "妈", "望", "次", "西", "风", "种", "带", "J", "?", "实", "情", "才", "这", "?", "E", "我", "神", "格", "长", "觉", "间", "年", "眼", "无", "不", "亲", "关", "结", "0", "友", "信", "下", "却", "重", "己", "老", "2", "音", "字", "m", "呢", "明", "之", "前", "高", "P", "B", "目", "太", "e", "9", "起", "稜", "她", "也", "W", "用", "方", "子", "英", "每", "理", "便", "四", "数", "期", "中", "C", "外", "样", "a", "海", "们", "任"
 ]
 
-
 def decode_text(text: str) -> str:
     if not text:
         return ""
@@ -63,7 +62,7 @@ def run_scraper(limit=30, sleep_sec=5):
         )
         page = context.new_page()
 
-        # ===== 提取分类用的 JS =====
+        # 提取分类用的 JS
         categories_js = """
         () => {
             const links = Array.from(document.querySelectorAll('a'));
@@ -94,28 +93,19 @@ def run_scraper(limit=30, sleep_sec=5):
             cat["channel"] = "女频"
         print(f"✅ 提取到女频 {len(female_categories)} 个分类标签。")
 
-        # ===== 第二步：查找男频链接并切换，提取男频分类 =====
+        # ===== 第二步：从女频URL推算男频URL，直接导航提取 =====
+        # URL规则：/rank/X_Y_Z 中 X=0 是女频，X=1 是男频
         male_categories = []
         try:
-            male_link_js = """
-            () => {
-                const links = Array.from(document.querySelectorAll('a'));
-                for (const a of links) {
-                    const text = a.innerText.trim();
-                    const href = a.getAttribute('href') || '';
-                    if (text && (text === '男频' || text === '男频新书' || text === '男生') && href && href.includes('/rank')) {
-                        return { text: text, href: href };
-                    }
-                }
-                return null;
-            }
-            """
-            male_link = page.evaluate(male_link_js)
+            # 取女频第一个分类，把 X 从 0 改成 1，就是男频的对应页面
+            if female_categories:
+                first_female_href = female_categories[0]["href"]
+                # /rank/0_1_1139 -> /rank/1_1_1139
+                male_entry_href = "/rank/1" + first_female_href[first_female_href.index("_"):]
+                male_entry_url = "https://fanqienovel.com" + male_entry_href
 
-            if male_link and male_link.get('href'):
-                male_url = "https://fanqienovel.com" + male_link['href'] if male_link['href'].startswith('/') else male_link['href']
-                print(f"[{datetime.now().strftime('%H:%M:%S')}] 正在导航到男频页面：{male_url}")
-                page.goto(male_url, wait_until="load", timeout=15000)
+                print(f"[{datetime.now().strftime('%H:%M:%S')}] 正在导航到男频页面：{male_entry_url}")
+                page.goto(male_entry_url, wait_until="load", timeout=15000)
                 page.wait_for_selector('a[href^="/page/"]', timeout=5000)
 
                 male_categories = page.evaluate(categories_js)
@@ -123,9 +113,9 @@ def run_scraper(limit=30, sleep_sec=5):
                     cat["channel"] = "男频"
                 print(f"✅ 提取到男频 {len(male_categories)} 个分类标签。")
             else:
-                print("⚠️ 未在页面上找到男频链接，跳过男频抓取。")
+                print("⚠️ 未提取到女频分类，无法推算男频URL。")
         except Exception as e:
-            print(f"⚠️ 切换到男频失败: {e}")
+            print(f"⚠️ 导航到男频失败: {e}")
 
         # ===== 第三步：合并所有分类 =====
         all_channel_categories = female_categories + male_categories
@@ -155,7 +145,6 @@ def run_scraper(limit=30, sleep_sec=5):
             for _ in range(8):
                 page.evaluate("window.scrollBy(0, window.innerHeight * 1.5)")
                 time.sleep(3)
-
             # 提取数据
             extract_js = """
             () => {
@@ -286,6 +275,3 @@ if __name__ == "__main__":
     print("开始执行番茄新书榜抓取计划...")
     run_scraper(limit=30, sleep_sec=5)
 
-if __name__ == "__main__":
-    print("开始执行番茄女频新书榜抓取计划...")
-    run_scraper(limit=30, sleep_sec=5)
