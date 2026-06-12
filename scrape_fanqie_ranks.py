@@ -123,7 +123,7 @@ def run_scraper(limit=30, sleep_sec=5):
                     break  # 页面高度不再变化，说明已到底部
                 last_height = current_height
                 page.evaluate("window.scrollBy(0, window.innerHeight)")
-                time.sleep(1.5)  # 给懒加载留出响应时间
+                time.sleep(2.5)  # 给懒加载留出响应时间
 
                 
             # Extract cards. Based on helper.js: books usually are inside links a[href^="/page/"]
